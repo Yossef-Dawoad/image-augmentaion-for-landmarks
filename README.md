@@ -29,8 +29,8 @@ for image, kpoints in gen.generate(20):
     display_with_landmark(image, kpoints)
 ```
 
-the ``display_with_landmark`` should be in the augtool so simple `from augtool import *`
-or `augtool.display_with_landmark` should be enough.
+the ``display_with_landmark`` should be in the augtool so simple `from augtools import *`
+or `augtools.display_with_landmark` should be enough.
 <hr>
 what we just did is generating 20 images and plot them with corresponding landmarks for testing
 
