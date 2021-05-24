@@ -7,7 +7,7 @@ most of the functionality and more are coming soon with other improvements
 # How to use it 
 clone the repo then place the augtool.py file in the project folder
 
-### 1. first inilize the class 
+### 1. first initialize the class 
 ```python
 gen = image_generator_landmarksAwareV2(image=img,
                                        keypoints=keypoints,
