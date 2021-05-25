@@ -21,19 +21,38 @@ class image_generator_landmarksAwareV2:
                  brightnees_range=0.0,
                  Horizontalflip=False,
                  Verticalflip=False,
-                 blur_range=1,
+                 blur_range=0,
                  noise_factor=0.0,
                  zoom_range=0.0,
                  BorderMode=1,
                  filpprobability=3,
-                 sharpen=False,
                  noiseprobability=4,
                  target_shape=None):
         
         '''
         image : numpy array of shape (width, height, 3-channel)
         keypoints: list of landmark or keypoints coordinate [x1,y1,x2,y2, ...]
-
+        rotate_range: Int. or tuple of Int Degree range for random rotations.
+        shift_range: Float or tuple of Float Recommended values are between  0 to 0.3
+        brightnees_range: Float or tuple of Float Recommended values are between  0.4 to 1.3
+        blur_range: tuple of Odd Number with the probability of using it (0,0.7) (3,0.2) or (5,0.1) .. 
+                    if the value is 0 no blur will be applied the some of probability 
+                    must sum to one so keep it in mind
+        noise_factor: Float value Recommended values are those smaller than 0.03 or so 
+        zoom_range: Float number or tuple of Float 
+        BorderMode: One of {0, 1, 2 or 3}.
+            Default is 1 => 'nearest'.
+            Points outside the boundaries of the input are filled
+            according to the given mode:
+            - 0 => 'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
+            - 1 => 'nearest':  aaaaaaaa|abcd|dddddddd
+            - 2 => 'reflect':  abcddcba|abcd|dcbaabcd
+            - 3=> 'wrap':  abcdabcd|abcd|abcdabcd
+        filpprobability: Int after how many image apply a flip
+        noiseprobability: Int after how many image apply a noice augmentation
+        target_shape: tuple of the output image target shape ex (width, height, channels)
+        
+        
 
         '''
         self.image = image
