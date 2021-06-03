@@ -12,202 +12,291 @@ def load_image(path,RGB=True,gray=False):
 
 
 
-class image_generator_landmarksAwareV2:
+class image_generator_landmarksAware:
+            
+    """Generate tensors of images for data augmentation.
+      The data will be looped over.
+      
+      # Arguments
+        image: image like Numpy array 
+        keypoints: list of coordinate points ex. [x1, y1, x2, y2, ...]
+        rotate_range: Int. or tuple of Int(s) Degree range for random rotations.
+        shift_range: Float, or tuple of Floats
+            - float: fraction of total width or height
+
+        brightness_range: Tuple or list of two floats. Range for picking
+            a brightness shift value from.
+
+        zoom_range: Float or [lower, upper]. Range for random zoom.
+            If a float, `[lower, upper] = [abs(1-zoom_range), zoom_range]`.
+            
+        BorderMode: One of {0, 1, 2 or 3}.
+            Default is 1 -> 'nearest'.
+            Points outside the boundaries of the input are filled
+            according to the given mode:
+            - 0 -> 'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
+            - 1 -> 'nearest':  aaaaaaaa|abcd|dddddddd
+            - 2 -> 'reflect':  abcddcba|abcd|dcbaabcd
+            - 3 -> 'wrap':  abcdabcd|abcd|abcdabcd
+
+        horizontal_flip: Boolean. Randomly flip inputs horizontally.
+        vertical_flip: Boolean. Randomly flip inputs vertically.
+        
+
+        preprocessing_function: function that will be applied on each input.
+            The function will run before the image is resized and augmented.
+            The function should take one argument:
+            one image (NumPy tensor with rank 3),
+            and should output a NumPy tensor with the same shape.
+            
+    # Examples
+     
+     
+     
+     """
     def __init__(self,
                  image,
                  keypoints,
                  rotate_range=0.0,
-                 shift_range=0.0,
-                 brightnees_range=0.0,
-                 Horizontalflip=False,
-                 Verticalflip=False,
-                 blur_range=1,
-                 noise_factor=0.0,
+                 shift_range=0.0,     
+                 blur_range=0,
+                 noise_range=0.0,
                  zoom_range=0.0,
-                 BorderMode=1,
-                 filpprobability=3,
+                 brightness_range=None,
                  sharpen=False,
-                 noiseprobability=4,
-                 target_shape=None):
+                 horizontal_flip=False,
+                 vertical_flip=False,
+                 preprocessing_function=None,
+                 target_shape=None,
+                 p_rotate=0.2,
+                 p_shift=0.2,
+                 p_bright=0.2,
+                 p_blur=0.1,
+                 p_noise=0.1,
+                 p_zoom=0.2,
+                 p_vflip=0.1,
+                 p_hflip=0.1,
+                 p_sharpen=0.1,
+                 epochs=1,
+                 BorderMode=1,
+                 informative=False,
+                 shutdown_Warrings=True,
+                 allow_repeate=False):
         
-        '''
-        image : numpy array of shape (width, height, 3-channel)
-        keypoints: list of landmark or keypoints coordinate [x1,y1,x2,y2, ...]
 
-
-        '''
         self.image = image
         self.img = image.copy() / 255.0
         self.keypoints = keypoints
-        self.k=np.array(keypoints)
-        self.rotate_range=rotate_range
-        self.shift_range = shift_range
-        self.brightnees_range=brightnees_range
-        self.Horizontalflip=Horizontalflip
-        self.Verticalflip=Verticalflip
-        self.blur_range=blur_range
-        self.sharpen=sharpen
-        self.target_shape=target_shape
+        self.k = np.array(self.keypoints)
+        self.blur_range = blur_range
+        self.noise_range = noise_range
         self.zoom_range = zoom_range
-        self.fillmode=BorderMode
-        self.noise_factor=noise_factor
-        self.filpprobability=filpprobability
-        self.noiseprobability=noiseprobability
-        self.h, self.w, self.num_channels = self.image.shape
-        self.center = (self.w//2, self.h//2)
+        self.horizontal_flip = horizontal_flip
+        self.vertical_flip = vertical_flip
+        self.sharpen = sharpen
+        self.preprocessing_function = preprocessing_function
         
-        # checking for paramters
-        if isinstance(rotate_range, (float, int)):
+        self.p_rotate = p_rotate
+        self.p_shift = p_shift
+        self.p_bright = p_bright
+        self.p_blur = p_blur
+        self.p_noise = p_noise
+        self.p_zoom = p_zoom
+        self.p_hflip = p_hflip
+        self.p_vflip = p_vflip
+        self.p_sharpen = p_sharpen
+        self.epochs = epochs
+        self.allow_repeate = allow_repeate
+        
+        self.informative = informative
+        self.BorderMode = BorderMode
+        self.h, self.w  = self.image.shape[:2]
+        self.center = (self.w//2, self.h//2)
+        self.target_shape = target_shape
+        
+        # ---------Checking for valid ranges-------------
+        if isinstance(rotate_range, (int,float)):
             self.rotate_range = [-rotate_range, rotate_range]
-        elif (len(rotate_range) == 2 and
-              all(isinstance(val, (float, int)) for val in rotate_range)):
-            self.rotate_range = [rotate_range[0], rotate_range[1]]
+        elif isinstance(rotate_range,(list,tuple)):
+            self.rotate_range = rotate_range
         else:
-            raise ValueError('`rotate_range` should be a float or '
-                             'a tuple or list of two floats. '
-                             'Received: %s' % (rotate_range,))
-        #-------------------------------------
-        if isinstance(shift_range, (float, int)):
+            raise ValueError('rotate_range should be float tuple or list of two floats.'
+                            'Received: %s' % (rotate_range,))
+            
+        if isinstance(shift_range, (int,float)):
             self.shift_range = [-shift_range, shift_range]
-        elif (len(shift_range) == 2 and
-              all(isinstance(val, (float, int)) for val in shift_range)):
-            self.shift_range = [shift_range[0], shift_range[1]]
+        elif isinstance(shift_range,(list,tuple)):
+            self.rotate_range = rotate_range
         else:
-            raise ValueError('`shift_range` should be a float or '
-                             'a tuple or list of two floats. '
-                             'Received: %s' % (shift_range,))
-        #--------------------------------------
-    
-        if isinstance(brightnees_range, (float, int)):
-            self.brightnees_range = [1-brightnees_range, 1+brightnees_range]
-        elif (len(brightnees_range) == 2 and
-              all(isinstance(val, (float, int)) for val in brightnees_range)):
-            self.brightnees_range = [brightnees_range[0], brightnees_range[1]]
+            raise ValueError('shift_range should be float tuple or list of two floats.'
+                            'Received: %s' % (shift_range,))
+                       
+        if brightness_range is not None:
+            if (not isinstance(brightness_range, (tuple, list)) or len(brightness_range) != 2):
+                raise ValueError('`brightness_range should be tuple or list of two floats. '
+                                 'Received: %s' % (brightness_range,))
+        self.brightness_range = brightness_range
+            
+        if isinstance(zoom_range, (int,float)):
+            self.zoom_range = [abs(1-zoom_range), zoom_range]         
+        elif isinstance(zoom_range, (list,tuple)):
+            self.zoom_range = zoom_range
         else:
-            raise ValueError('`brightnees_range` should be a float or '
-                             'a tuple or list of two floats. '
-                             'Received: %s' % (brightnees_range,))   
-        #--------------------------------------
-        if isinstance(zoom_range, (float, int)):
-            self.zoom_range = [1-zoom_range, 1+zoom_range]
-        elif (len(zoom_range) == 2 and
-              all(isinstance(val, (float, int)) for val in zoom_range)):
-            self.zoom_range = [zoom_range[0], zoom_range[1]]
-        else:
-            raise ValueError('`zoom_range` should be a float or '
-                             'a tuple or list of two floats. '
-                             'Received: %s' % (zoom_range))  
-    
-    
-    def generate(self, numImages=6):
-        counter = 0
-        while counter != numImages:    
-            outputImg, outputKeypts = self._rotate(self.img, self.k)
-            #outputImg = self._sharpen(outputImg)
-            outputImg, outputKeypts = self._shift(outputImg, outputKeypts)
-            outputImg = self._brighten(outputImg)
-            if self.Horizontalflip != False:
-                if counter % self.filpprobability == 0: 
-                    outputImg, outputKeypts = self._flip(outputImg, outputKeypts,'y')
-            if self.Verticalflip != False:
-                if counter % self.filpprobability+1 == 0: 
-                    outputImg, outputKeypts = self._flip(outputImg, outputKeypts,'x')
-            outputImg = self._blur(outputImg,)
-            if counter % self.noiseprobability==0:outputImg = self._apply_noise(outputImg)
-            outputImg, outputKeypts = self._scale_image(outputImg,outputKeypts)
-            outputImg, outputKeypts = self._resize(outputImg, outputKeypts)
-            outputImg = self.perfect_normlize(outputImg)
-            counter += 1
-            yield outputImg, outputKeypts
-    
+            raise ValueError('zoom_range should be float tuple or list of two floats.'
+                            'Received: %s' % (zoom_range,))
+        
+        
+        
+    def generate(self, num_images, batch_size=1):   
+        self.augmentation_list = [self._rotate, self._shift,
+                                  self._blur,self._apply_noise, self._scale_image]
+        if self.brightness_range:self.augmentation_list.append(self._brighten)
+        if self.horizontal_flip:self.augmentation_list.append(self._hflip)
+        if self.vertical_flip:self.augmentation_list.append(self._vflip)
+        if self.sharpen:self.augmentation_list.append(self._sharpen)
+        if self.preprocessing_function:
+            input_image, input_keypoints = self.preprocessing_function(self.img, self.k)
+        else:input_image, input_keypoints = self.img, self.k
+        images_counter = 0
+        while images_counter != num_images:
+            #! implement batches comming Here
+            output_image, output_keypoints = input_image, input_keypoints
+            for augFunc in np.random.choice(self.augmentation_list, size=self.epochs, replace=self.allow_repeate, p=self.__stat_call_with_probability()):    
+                output_image, output_keypoints = augFunc(output_image, output_keypoints)
+            
+            output_image, output_keypoints = self._resize(output_image, output_keypoints)
+            output_image = self.__perfect_normlize(output_image)
+            images_counter += 1 
+            yield output_image, output_keypoints
+        
+        
     def _rotate(self, img, keypoints):
         angle = np.random.randint(*self.rotate_range)
+        if self.informative:print(f'rotate has been called with {angle} degree')
         radian_angle = (-angle * np.pi) / 180.
         M = cv2.getRotationMatrix2D(self.center, angle, 1)
-        rotated_img = cv2.warpAffine(img, M, (self.w,self.h),borderMode=1,flags=cv2.INTER_CUBIC)
-        # keypoints augmention
+        rotated_img = cv2.warpAffine(img, M, (self.w,self.h),borderMode=self.BorderMode,flags=cv2.INTER_CUBIC)
+        # keypoints augmention process
         keypts = keypoints - self.center[0] 
         keypts = np.array([keypts[0::2]*np.cos(radian_angle) - keypts[1::2]*np.sin(radian_angle),
                           keypts[0::2]*np.sin(radian_angle) + keypts[1::2]*np.cos(radian_angle)])
         keypts += self.center[0]
         keypts = np.array([(x,y) for x,y in zip(keypts[0], keypts[1])])
-        if np.any(keypts<0):return img, keypoints # or return None
+        if np.any(keypts<0):
+            print('[Warning] the image ratation has not been done cuz we lost some keypoints try with less ratation range')
+            return img, keypoints # or return None
         return rotated_img, keypts.flatten()
-    
-    def _shift(self, img, keypoints):
+        
+    def _shift(self, img, keypoints):  
+        if self.informative:print('shift has been called')
         x_shift, y_shift = np.random.uniform(*self.shift_range,size=2)
         x_shift, y_shift = int(self.w * x_shift) ,int(self.h * y_shift)
         M = np.float32([[1,0,x_shift],[0,1,y_shift]])
-        shifted_img = cv2.warpAffine(img, M, (self.w,self.h),borderMode=1)
-        # keypoints augmentations
-        keypts = keypoints
+        shifted_img = cv2.warpAffine(img, M, (self.w,self.h),borderMode=self.BorderMode)
+        # keypoints augmentations process
+        keypts = keypoints.copy()
         keypts[::2] = keypts[::2] +  x_shift # the shift in the x-axis
         keypts[1::2] = keypts[1::2] + y_shift
-        if np.any(keypts<0):return img, keypoints # or return None
+        if np.any(keypts<0):
+            print('[Warning] the image shifting has not been done cuz we lost some keypoints try with less shift range')
+            return img, keypoints # or return None
         return shifted_img, keypts
     
-    def _brighten(self, img):
-        brightness_range = np.random.uniform(*self.brightnees_range)
-        return img * brightness_range
+    def _brighten(self, img, keypoints):
+        if self.informative:print('brighten has been called')
+        brightness_range = np.random.uniform(*self.brightness_range)
+        brighten_img = img * brightness_range
+        return brighten_img, keypoints
     
+    def _blur(self, img, keypoints):
+        if self.blur_range==0:return img, keypoints
+        k = np.random.choice(self.blur_range)
+        if self.informative:print(f'blur has been applied wiith value {k}')
+        kernel=(k, k)
+        blured_img = cv2.blur(img, kernel)
+        return blured_img, keypoints
     
-    def _flip(self, img, keypoints, flip_axis):
-        keypts= keypoints - self.center[0]        
-        if flip_axis=='y':
-            M = np.float32([[-1, 0, self.w-1], [0, 1, 0]])
-            keypts[::2] = - keypts[::2] 
-        else:
-            M = np.float32([[1, 0, 0], [0, -1, self.h - 1]])
-            keypts[1::2] =  -keypts[1::2] 
-            
-        hfliped_img = cv2.warpAffine(img, M, (self.w, self.h))
-        keypts += self.center[0]
-        if np.any(keypts<0):return img, keypoints 
-        return hfliped_img, keypts
+    def _apply_noise(self, img, keypoints):
+        if self.informative:print('noise has been applied')
+        if self.noise_range ==0:return img, keypoints
+        noisy_image = cv2.add(img, self.noise_range * np.random.randn(*self.image.shape))
+        return noisy_image , keypoints
     
     def _scale_image(self, img, keypoints): 
+        if self.informative:print('zoom has been applied')
         ratio = np.random.uniform(*self.zoom_range)
         center_Shift = (1-ratio) * self.center[0]
         M = np.float32([[ratio , 0 , center_Shift],[0, ratio , center_Shift]])
-        scaled_img = cv2.warpAffine(img, M, (self.w, self.h),borderMode=1)
+        scaled_img = cv2.warpAffine(img, M, (self.w, self.h),borderMode=self.BorderMode)
         #keypoints augmentaion
-        keypts = keypoints
+        keypts = keypoints.copy()
         keypts[0::2] =  keypts[0::2] * ratio + center_Shift
         keypts[1::2] = keypts[1::2] * ratio + center_Shift
-        if np.any(keypts<0):return img, keypoints 
+        if np.any(keypts<0):
+            print('[Warning] the image zoom has not been done cuz we lost some keypoints try with less zoom range')
+            return img, keypoints 
         return scaled_img, keypts
     
-    def _blur(self,img):
-        
-        if isinstance(self.blur_range, int):
-            k = self.blur_range
-        elif len(self.blur_range) >=2 and all(isinstance(val, tuple) for val in self.blur_range):
-            k = np.random.choice([val for val,_ in self.blur_range],p=[v for _,v in self.blur_range])
-        if k == 0:return img
-        kernel=(k, k)
-        img = cv2.blur(img, kernel)
-        return img
+    def _hflip(self, img, keypoints):
+        if self.informative:print('applied horizontal flip')
+        keypts= keypoints - self.center[0]        
+        M = np.float32([[-1, 0, self.w-1], [0, 1, 0]])
+        keypts[::2] = - keypts[::2]
+        fliped_img = cv2.warpAffine(img, M, (self.w, self.h))
+        keypts += self.center[0]
+        return fliped_img, keypts
+
+    def _vflip(self, img, keypoints):
+        if self.informative:print('applied vertical flip')
+        keypts= keypoints - self.center[0]        
+        M = np.float32([[1, 0, 0], [0, -1, self.h - 1]])
+        keypts[1::2] =  -keypts[1::2]
+        fliped_img = cv2.warpAffine(img, M, (self.w, self.h))
+        keypts += self.center[0]
+        return fliped_img, keypts
     
-    def _apply_noise(self, img):
-        if self.noise_factor ==0:return img
-        noisy_image = cv2.add(img, self.noise_factor * np.random.randn(*self.image.shape))
-        return noisy_image
-    def _sharpen(self,img):
-        kernel = np.array([[-1, -1, -1], [-1, 9 , -1], [-1, -1, -1]])
+    def _sharpen(self, img, keypoints):
+        if self.informative:print('sharpen has been applied')
+        kernel = np.array([[0, -0.5, 0], [-0.5, 3 , -0.5], [0, -0.5, 0]])
         sharpen_img = cv2.filter2D(img, -1, kernel)
-        return sharpen_img
+        return sharpen_img, keypoints
     
     def _resize(self, img, keypoints):
         if self.target_shape is None: return img, keypoints
         orignal_shape = self.image.shape
         resized_img = cv2.resize(img, self.target_shape[:2]) 
-        keypts = keypoints
+        keypts = keypoints.copy()
         keypts[::2] = keypts[::2] * self.target_shape[1] / float(orignal_shape[1])
         keypts[1::2] =keypts[1::2] * self.target_shape[0] / float(orignal_shape[0])
         return resized_img, keypts
-    
-    def perfect_normlize(self,image):
+              
+    def __stat_call_with_probability(self):
+        a=np.random.dirichlet(np.ones(len(self.augmentation_list)), size=1).flatten()
+        values = [self.p_rotate, self.p_shift, 
+                  self.p_blur,self.p_noise, self.p_zoom]
+        if self.brightness_range is not None :values.append(self.p_bright)
+        if self.horizontal_flip:values.append(self.p_hflip)
+        if self.vertical_flip:values.append(self.p_vflip)
+        if self.sharpen:values.append(self.p_sharpen)
+        for idx in range(len(values)): a[idx] = values[idx]
+        a /= a.sum()
+        return a
+        
+    def __perfect_normlize(self,image):
         return (image - np.min(image)) / (np.max(image) - np.min(image))
+ 
+    def __str__(self):
+        return (f''' the rotate range parameter provided were {self.rotate_range} ,
+the shift_range parameter provided were {self.shift_range},
+the zoom_range  parameter provided were {self.zoom_range},
+the brightness_range parameter provided were {self.brightness_range},
+the blur_range parameter provided were {self.blur_range},
+the noise_range parameter provided were {self.noise_range},
+the sharpen parameter is set to {self.sharpen},
+horizontal_flip is set to {self.horizontal_flip},
+vertical_flip is set to {self.vertical_flip},
+the output image should have the {self.image.shape if self.target_shape is None else self.target_shape} shape''')
+    
         
         
 
@@ -220,3 +309,11 @@ def display_with_landmark(image,keypoints,color_codes=None):
     for idx, (point, color) in enumerate(zip(keypts,colors)):
         ax.scatter(*point, c=color)
     plt.show()
+
+
+#* import uuid, json # we  need to support list of images as input to generator as of now it's one image at a time (best way..?) 
+# def generateto_directory(generator,dir_save):
+    # Datalist = []
+
+
+
