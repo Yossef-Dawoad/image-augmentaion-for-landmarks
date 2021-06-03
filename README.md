@@ -53,10 +53,10 @@ with open('../data/augkeypointsdata.json', 'w') as f:
 <hr> 
 
 ## what will be next
--[ ] improving the code design more
--[ ] more Documentation and examples
--[ ] support for list of images as input instead of one at a time  
--[ ] ability to generate images as batches
--[ ] add more image manipulation functions
+- [ ] improving the code design more
+- [ ] more Documentation and examples
+- [ ] support for list of images as input instead of one at a time  
+- [ ] ability to generate images as batches
+- [ ] add more image manipulation functions
 
 ### Note: Feel free to report for errors or contribute for improve the code or add new functionality
