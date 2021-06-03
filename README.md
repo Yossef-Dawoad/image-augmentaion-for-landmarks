@@ -23,7 +23,7 @@ gen = image_generator_landmarksAware(image=img,
                                      sharpen=False,
                                      epochs=3
 ```
-the default values for those are 0.0 or False so feel free to leave them empty and just type you want to augment 
+the default values for those are 0.0 None or False so feel free to leave them empty and just type what you want to augment 
 
 ### 2.generate 20 augmented images on the Fly
 ```python 
