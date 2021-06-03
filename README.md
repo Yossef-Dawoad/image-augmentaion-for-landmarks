@@ -9,17 +9,19 @@ clone the repo then place the augtool.py file in the project folder
 
 ### 1. first initialize the class 
 ```python
-gen = image_generator_landmarksAwareV2(image=img,
-                                       keypoints=keypoints,
-                                       rotate_range=(-30,40),
-                                       shift_range=0.1,
-                                       brightnees_range=(.4,1.3),
-                                       blur_range=[(1,0.6),(3,0.3),(5,0.1)],
-                                       noise_factor=0.05,
-                                       noiseprobability=4,
-                                       zoom_range=(.85,1.3),
-                                       Horizontalflip=True,
-                                       target_shape=(256,256,3))
+gen = image_generator_landmarksAware(image=img,
+                                     keypoints=points,
+                                     rotate_range=(-50,70),
+                                     shift_range=0.12,
+                                     brightness_range=(0.4,1.3),   
+                                     noise_range=0.04,
+                                     allow_repeate=True,
+                                     blur_range=(5,3),
+                                     horizontal_flip=True,
+                                     zoom_range=(0.8,1.4),
+                                     target_shape=(256,256,3),
+                                     sharpen=False,
+                                     epochs=3
 ```
 the default values for those are 0.0 or False so feel free to leave them empty and just type you want to augment 
 
